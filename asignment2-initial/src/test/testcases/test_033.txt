@@ -1,0 +1,4 @@
+
+            id : array [2] of integer = (a > b) && (d < c);
+            id : string = a > b && d < c;
+        

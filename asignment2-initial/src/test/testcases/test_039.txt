@@ -1,0 +1,4 @@
+
+            id : float = a[1+2, 7 :: c, "!"];
+            id : float = for[1+2, 7 :: c];
+        

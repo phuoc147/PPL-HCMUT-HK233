@@ -1,0 +1,7 @@
+
+            foo : function void (){
+                a : float;
+                if (1) return;
+                else a : float;
+            }
+        

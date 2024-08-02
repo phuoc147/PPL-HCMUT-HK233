@@ -1,0 +1,4 @@
+main : function void(){
+                a = a + 14;
+                print(a);
+            }

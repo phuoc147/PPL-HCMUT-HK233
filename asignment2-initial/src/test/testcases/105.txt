@@ -1,0 +1,4 @@
+
+            x: auto = 5;
+            y: integer = 6;
+        

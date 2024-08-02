@@ -1,0 +1,7 @@
+
+        sum: function integer(x: integer, y:integer){
+            return x+y;
+        }
+        main : function void(){
+            x: integer = sum(1,2);
+            }

@@ -1,0 +1,3 @@
+Program([
+	FuncDecl(main, VoidType, [], None, BlockStmt([IfStmt(BinExpr(==, FuncCall(check_float, [StringLit(2.12)]), BooleanLit(True)), BlockStmt([CallStmt(printString, StringLit(float))]), BlockStmt([CallStmt(printString, StringLit(Not float))]))]))
+])

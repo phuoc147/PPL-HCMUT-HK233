@@ -1,0 +1,10 @@
+
+            foo : function auto ()
+            {
+                do 
+                {
+                   break; 
+                }
+                while(1+2>3)
+            }
+        

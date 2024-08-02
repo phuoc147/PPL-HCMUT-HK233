@@ -1,0 +1,5 @@
+
+            id : string = a && b && c;
+            id : string = a || b || c;
+            id : string = true || false && "true" || d[1];
+        

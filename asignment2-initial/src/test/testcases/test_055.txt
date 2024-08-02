@@ -1,0 +1,9 @@
+
+            foo : function auto ()
+            {
+                continue;
+                break;
+                continue;
+                break;
+            }
+        

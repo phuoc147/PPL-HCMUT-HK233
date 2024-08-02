@@ -1,0 +1,7 @@
+
+            foo : function auto ()
+            {
+                if (1+2*3) ;
+                else a = 2; 
+            }
+        

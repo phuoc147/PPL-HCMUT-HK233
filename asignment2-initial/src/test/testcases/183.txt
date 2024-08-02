@@ -1,0 +1,11 @@
+
+            mergeSort: function void (out arr: array [1407] of integer, start:integer, end:integer){
+                if (start >= end)
+                    return; // Returns recursively
+            
+                mid: auto = start + (end - start) / 2;
+                mergeSort(arr, start, mid);
+                mergeSort(arr, mid + 1, end);
+                merge(arr, start, mid, end);
+            }
+        

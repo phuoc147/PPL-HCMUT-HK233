@@ -1,0 +1,3 @@
+Program([
+	FuncDecl(mergeSort, VoidType, [OutParam(arr, ArrayType([1407], IntegerType)), Param(start, IntegerType), Param(end, IntegerType)], None, BlockStmt([IfStmt(BinExpr(>=, Id(start), Id(end)), ReturnStmt()), VarDecl(mid, AutoType, BinExpr(+, Id(start), BinExpr(/, BinExpr(-, Id(end), Id(start)), IntegerLit(2)))), CallStmt(mergeSort, Id(arr), Id(start), Id(mid)), CallStmt(mergeSort, Id(arr), BinExpr(+, Id(mid), IntegerLit(1)), Id(end)), CallStmt(merge, Id(arr), Id(start), Id(mid), Id(end))]))
+])

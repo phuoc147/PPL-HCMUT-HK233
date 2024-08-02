@@ -1,0 +1,7 @@
+
+            foo : function auto ()
+            {
+                while(true) break;
+                while(1+2*3) {}
+            }
+        

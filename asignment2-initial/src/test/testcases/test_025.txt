@@ -1,0 +1,17 @@
+
+            id : auto = a :: 1;
+            id : auto = a > b ;
+            id : auto = a >= b;
+            id : auto = a < b;
+            id : auto = a <= b;
+            id : auto = a == b;
+            id : auto = a != b;
+            id : auto = a && b || c ;
+            id : auto = a + b - c;
+            id : auto = a * b / c % d;
+            id : auto = - a;
+            id : auto = ! a;
+            id : auto = a[1,2,3];
+            id : auto = id[2,3] + id[2];
+            id : auto = 1 + 1.0 - "1" + true - false - {1} + {1,2,3};
+        

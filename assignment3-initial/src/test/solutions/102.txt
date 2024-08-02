@@ -1,0 +1,3 @@
+Program([
+	VarDecl(x, ArrayType([5], StringType), ArrayLit([StringLit(phuoc), StringLit(ha)]))
+])

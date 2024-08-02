@@ -1,0 +1,6 @@
+
+            foo : function auto ()
+            {
+                for(id[2] = 1, i < 1, i + 1) break;
+            }
+        

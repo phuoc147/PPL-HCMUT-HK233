@@ -1,0 +1,13 @@
+
+            foo : function auto ()
+            {
+                {
+                    
+                }
+                {
+                    return;
+                    return;
+                }
+                {{{return;}}}
+            }
+        

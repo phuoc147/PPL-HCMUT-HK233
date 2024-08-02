@@ -1,0 +1,8 @@
+
+            foo : function auto ()
+            {
+                for(id = 1, i < 1, i + 1) break;
+                
+                for(id = 1 + 2 * 3, 1+2::3 , 1+2::3) {}
+            }
+        

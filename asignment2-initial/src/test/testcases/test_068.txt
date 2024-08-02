@@ -1,0 +1,8 @@
+
+            foo : function auto ()
+            {
+                do 
+                    {};
+                while(1+2>3);
+            }
+        

@@ -1,0 +1,6 @@
+
+            foo : function auto ()
+            {
+                foo(1,2)
+            }
+        

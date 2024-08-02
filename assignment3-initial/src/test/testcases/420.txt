@@ -1,0 +1,10 @@
+
+            foo : function auto(a:auto,c:integer) {
+                x:auto = 2 + a;
+                b:integer = x + 2;
+                c = 2.0;
+            }
+            
+            main:function void(){
+            }
+        

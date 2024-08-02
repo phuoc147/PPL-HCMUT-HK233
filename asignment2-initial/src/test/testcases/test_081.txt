@@ -1,0 +1,6 @@
+
+            foo : function void (){
+                a : float;
+                if (1) a : float;
+            }
+        

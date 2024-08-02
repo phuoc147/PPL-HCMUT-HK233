@@ -1,0 +1,12 @@
+
+            goo: function auto() {}
+            add: function float(a:auto,b:auto){
+                return a + b;
+            }
+            foo : function auto(a:auto,e:auto) {
+                b: auto = 2 + a;
+            }
+            main:function void() {
+            
+            }
+        

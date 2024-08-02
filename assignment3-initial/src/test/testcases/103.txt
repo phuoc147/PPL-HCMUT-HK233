@@ -1,0 +1,6 @@
+
+            x: integer = 14;
+            y: float = 14.7e4;
+            z: string = "phuoc_ha_truong";
+            t: boolean = true;
+        

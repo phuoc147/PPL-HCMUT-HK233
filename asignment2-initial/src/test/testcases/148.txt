@@ -1,0 +1,10 @@
+
+        main: function void (){
+            if(check_float("2.12")==true){
+                printString("float");
+            }
+            else{
+                printString("Not float");
+            }
+        }
+        

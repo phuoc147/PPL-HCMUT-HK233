@@ -1,0 +1,14 @@
+
+            foo : function auto ()
+            {
+                if (1+2*3) a = 1;
+                else a = 2;
+                
+                if (1+2*3){}
+                
+                if (true)
+                    if (true){}
+                    else {}
+                    
+            }
+        

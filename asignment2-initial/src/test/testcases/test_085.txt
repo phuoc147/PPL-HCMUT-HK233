@@ -1,0 +1,8 @@
+
+        foo : function void (){
+            a : string;
+            return ;
+            a, b : boolean = 1, 2;
+            return ;
+        }
+        
