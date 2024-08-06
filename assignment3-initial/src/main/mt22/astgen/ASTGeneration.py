@@ -114,28 +114,7 @@ class ASTGeneration(MT22Visitor):
     def visitReturn_stat(self,ctx:MT22Parser.Return_statContext):
         return ReturnStmt(self.visit(ctx.exp()) if ctx.exp() else [])
 
-    def visitSpecialcall(self,ctx:MT22Parser.SpecialcallContext):
-        return self.visitChildren(ctx)
-    def visitReadIntegerfun(self, ctx:MT22Parser.ReadIntegerfunContext):
-        return CallStmt("readInteger",[])
-    def visitPrintIntegerfun(self, ctx:MT22Parser.PrintIntegerfunContext):
-        return CallStmt('printInteger',args=[self.visit(ctx.exp())])
-    def visitReadFloatfun(self, ctx:MT22Parser.ReadFloatfunContext):
-        return CallStmt('readFloat',[])
-    def visitPrintFloatfun(self, ctx:MT22Parser.PrintFloatfunContext):
-        return CallStmt('printFloat',args=[self.visit(ctx.exp())])
-    def visitReadBooleanfun(self, ctx:MT22Parser.ReadBooleanfunContext):
-        return CallStmt('readBoolean',[])
-    def visitPrintBooleanfun(self, ctx:MT22Parser.PrintBooleanfunContext):
-        return CallStmt('printBoolean',args=[self.visit(ctx.exp())])
-    def visitReadStringfun(self, ctx:MT22Parser.ReadStringfunContext):
-        return CallStmt('readString',[])
-    def visitPrintStringfun(self, ctx:MT22Parser.PrintStringfunContext):
-        return CallStmt('printString',args=[self.visit(ctx.exp())])
-    def visitSuperfun(self, ctx:MT22Parser.SuperfunContext):
-        return CallStmt('super',args=self.visit(ctx.exprlst()) if ctx.exprlst() else [])
-    def visitPreventDefaultfun(self,ctx:MT22Parser.PreventDefaultfunContext):
-        return CallStmt('preventDefault',[])
+    
 
     # *****EXPRESSION***** #
     def visitExprlst(self,ctx:MT22Parser.ExprlstContext):

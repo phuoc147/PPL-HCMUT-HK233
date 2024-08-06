@@ -24,7 +24,6 @@ statement:
 	| break_stat
 	| continue_stat
 	| fucnt_stat
-	| specialcall
 	| return_stat
 	| blockstat;
 assign_stat: (IDENTIFIERS | array_access) ASSIGN exp SEMI;
@@ -39,28 +38,7 @@ fucnt_stat: functcall SEMI;
 return_stat: RETURN (exp |) SEMI;
 blockstat: LB stat_list RB;
 
-specialcall:
-	readIntegerfun
-	| printIntegerfun
-	| readFloatfun
-	| printFloatfun
-	| readBooleanfun
-	| printBooleanfun
-	| readStringfun
-	| printStringfun
-	| superfun
-	| preventDefaultfun;
 
-readIntegerfun: 'readInteger' Lb Rb SEMI;
-printIntegerfun: 'printInteger' Lb exp Rb SEMI;
-readFloatfun: 'readFloat' Lb Rb SEMI;
-printFloatfun: 'printFloat' Lb exp Rb SEMI;
-readBooleanfun: 'readBoolean' Lb Rb SEMI;
-printBooleanfun: 'printBoolean' Lb exp Rb SEMI;
-readStringfun: 'readString' Lb Rb SEMI;
-printStringfun: 'printString' Lb exp Rb SEMI;
-superfun: 'super' Lb (exprlst |) Rb SEMI;
-preventDefaultfun: 'preventDefault' Lb Rb SEMI;
 
 /* *****EXPRESSIONS***** */
 exprlst: (exp COMMA exprlst) | exp;

@@ -1,8 +1,1 @@
-
-            a : integer;
-            a:function integer(x:integer, y:integer) {}
-            main: function void() {
-                a : integer;
-                b : integer = a(1,2);
-            }
-        
+a: function void(){}

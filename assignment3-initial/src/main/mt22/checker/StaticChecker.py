@@ -6,26 +6,10 @@ from typing import List
 
 # error when funcdecl doesn't have return ????????
 class Array(Type): # rectangular array
-    def __init__(self,dimension:List[int],typ:Type = None) -> None:
+    def __init__(self,dimension:List[int],typ:List[Type] = None) -> None:
         self.dimension = dimension
         self.typ = typ
     def out_of_range(self): pass
-    def check_valid_data(self,multiD_list:ArrayLit):
-        check_dimen = [multiD_list]
-        for i in self.dimension:
-            tmp = []
-            for j in check_dimen:
-                if len(j.explist) != i: return False
-                else: tmp += j.explist
-            check_dimen = tmp.copy()
-        first_type = type(check_dimen[0])
-        if first_type != type(self.typ): pass
-        for elem in check_dimen:
-            if type(elem) != first_type:
-                return False
-        return True
-    def __str__(self):
-        return "ArrayType([{}], {})".format(", ".join([str(dimen) for dimen in self.dimension]), str(self.typ))
 class FuncType(Type):
     def __init__(self,rettype,paratype:list) -> None:
         self.rettype = rettype
@@ -42,34 +26,21 @@ class Scope:
         self.var: List[Name] = []
         self.parScope:Scope = parScope
 class Utils:
-    def check_autoType(self,lst:list):
+    def check_autoType(self,lst):
+        if isinstance(lst,Array): return False
         if len(lst) >= 4: return True
         return False
-    def check_same_Array(self,arr1:Array,arr2:Array):
-        if list(arr1.dimension) == list(arr2.dimension) and type(arr1.typ) == type(arr2.typ):
-            return True
-        return False
-
-    def dimension_OneTypeArray(self,array:ArrayLit) -> list:
-        tmp = array
-        dimension = []
-        while(isinstance(tmp,ArrayLit)):
-            dimension.append(len(tmp.explist))
-            tmp = tmp.explist[0]
-        return dimension,tmp
-    def validArgType_FuncCall(self,vst,call_agr:List[Name],declared_agr:List[Type]): 
-        pass
         
-    def MT22FuncDecl_to_FuncType(self,vst,funcdecl:FuncDecl):
-        paratyp = [[vst.visit(i.typ,None),i.inherit] for i in funcdecl.params]
-        return FuncType([funcdecl.return_type],paratyp)
+    def MT22FuncDecl_to_Name(self,vst,funcdecl:FuncDecl):
+        lst = [funcdecl.name]
+        paratyp = []
+        for i in funcdecl.params:
+            if i.name in lst: raise Redeclared(vst.parameter,i.name)
+            paratyp += [[Name(i.name,vst.visit(i.typ,None),vst.parameter),i.inherit]]
+            lst += [i.name]
+        return Name(funcdecl.name,FuncType(vst.visit(funcdecl.return_type,None),paratyp),vst.function)
     # if rettype_access is  Bool() of Python -> invalid access
     #                       Array() or primitive data -> valid access
-    def redeclare_InheritParam(self,child:List[ParamDecl],par:List[ParamDecl]):
-        inherit = [i.name for i in par if i.inherit]
-        for i in child:
-            if i.name in inherit: return i.name
-        return ''
     def ID_Suite_Kind(self,name:str,kind:Kind,o:Scope) -> Name:
         tmp = o
         while(tmp):
@@ -77,9 +48,6 @@ class Utils:
                 if i.id == name : return i
             tmp = tmp.parScope
         raise Undeclared(kind,name)
-    def find_returnAutoParam(self,id:Name,param:List[Name])->Name:
-        for idx,i in enumerate(param):
-            if id.id == i.id: return idx,i
     def indexOftype(self,x,lst):
         for idx,i in enumerate(lst):
             if type(x) == type(i): 
@@ -91,52 +59,112 @@ class Utils:
     def union2_ListType(self,lst1:list,lst2:list,implicit,ordered = False):
         new_lst1 = []
         new_lst2 = []
-        utils = Utils()
         for x in lst1:
             for y in lst2:
                 if type(x) == type(y):
-                    if not(utils.checkInList(x,new_lst1)): new_lst1.append(x)
-                    if not(utils.checkInList(y,new_lst2)): new_lst2.append(y)
+                    if not(self.checkInList(x,new_lst1)): new_lst1.append(x)
+                    if not(self.checkInList(y,new_lst2)): new_lst2.append(y)
                 else:
                     if implicit != None:
-                        if utils.checkInList(x,implicit) and utils.checkInList(y,implicit) :
-                            if ((ordered and utils.indexOftype(x,implicit) <= utils.indexOftype(y,implicit)) or not ordered):
-                                if not(utils.checkInList(x,new_lst1)): new_lst1.append(x)
-                                if not(utils.checkInList(y,new_lst2)): new_lst2.append(y)
+                        if self.checkInList(x,implicit) and self.checkInList(y,implicit) :
+                            if ((ordered and self.indexOftype(x,implicit) <= self.indexOftype(y,implicit)) or not ordered):
+                                if not(self.checkInList(x,new_lst1)): new_lst1.append(x)
+                                if not(self.checkInList(y,new_lst2)): new_lst2.append(y)
         return new_lst1,new_lst2
     #op1 op2 typ rettype
     # typ . rettype -> if result is [] typ = typ else typ = result 
     # op1 . typ ; op2 . typ -> if one of results is [] -> typemismatch
+    def getTypeOfName(self,name:Name):
+        if isinstance(name.typ,FuncType): 
+            if isinstance(name.typ.rettype[0],VoidType): return name.id
+            return name.typ.rettype
+        else: return name.typ
+    def setTypeOfName(self,name:Name,typ):
+        if isinstance(name.typ,FuncType): name.typ.rettype = typ
+        else: name.typ = typ
     def inferType(self,op1:Name,op2:Name,typ:List[Type],rettype,expr,implicit = None) ->Name:
+        if isinstance(op1.typ,Array) or isinstance(op2.typ,Array): raise TypeMismatchInExpression(expr)
         tmp1,tmp2 = op1,op2
-        op1,op2 = op1.typ,op2.typ
+        op1,op2 = self.getTypeOfName(op1),self.getTypeOfName(op2)
+        if isinstance(op1,str) : raise TypeMismatchInExpression(FuncCall(op1,[]))
+        if isinstance(op2,str): raise TypeMismatchInExpression(FuncCall(op2,[]))
         typ_tmp,ret= self.union2_ListType(typ,rettype,implicit,True) 
         if implicit: 
             if typ_tmp == []: raise TypeMismatchInExpression(expr)
             else: typ = typ_tmp
         op1,op1_typ = self.union2_ListType(op1,typ,implicit,True)
         op2,op2_typ = self.union2_ListType(op2,typ,implicit,True)
-        op1,op2 = self.union2_ListType(op1,op2,implicit)
+        x,ret1 = self.union2_ListType(op1,ret,implicit,True)
+        y,ret2 = self.union2_ListType(op2,ret,implicit,True)
+        ret1,ret2 = self.union2_ListType(ret1,ret2,None)
+        ret = ret1 if len(ret1) < len(ret2) else ret2
+        # op1,op2 = self.union2_ListType(op1,op2) ???????????????
         if op1 == [] or op2 == []: raise TypeMismatchInExpression(expr)
-        tmp1.typ,tmp2.typ = op1,op2
+        self.setTypeOfName(tmp1,op1),self.setTypeOfName(tmp2,op2)
         if ret == []: return Name(None,rettype,None)
         else: return Name(None,ret,None)
     def inferUnType(self,op:Name,typ:List[Type],rettype,expr,implicit = None):
+        if isinstance(op.typ,Array) and isinstance(rettype,Array): 
+            if len(op.typ.dimension) != len(rettype.dimension): raise Exception("")
+            for x,y in zip(op.typ.dimension,rettype.dimension):
+                if x != y: raise Exception("")
+            return True
+        tmp1 = None
+        if isinstance(typ,Name): tmp1,typ = typ,typ.typ
         tmp = op
-        op = op.typ 
+        op = self.getTypeOfName(op)
+        if isinstance(op,str): raise TypeMismatchInExpression(FuncCall(op,[]))
         typ_tmp,ret= self.union2_ListType(typ,rettype,implicit,True) 
         if implicit: 
             if typ_tmp == []: raise TypeMismatchInExpression(expr)
             else: typ = typ_tmp
         op,op_tmp = self.union2_ListType(op,typ,implicit,True)
         if op == []: raise TypeMismatchInExpression(expr)
-        tmp.typ = op
+        self.setTypeOfName(tmp,op)
+        if tmp1: self.setTypeOfName(tmp1,op_tmp)
         if ret == []: return Name(None,rettype,None)
         else: return tmp if tmp.id != None else Name(None,ret,None)
     # def inferAutoType(self,root:Name) ->bool: # return false if can't infer
     #     queue = [root] # ensure root is auto and root.typ[1] and [2] not empty
     #     while len(queue) != 0:
     #         if 
+
+    def infertype_ArrayLit(self,ast,vst,implicit,o:Scope): # return False -> invalid input
+        typ = []
+        # [1,2,3]
+        if isinstance(ast,ArrayLit):
+            length = dimen = 0
+            for i in ast.explist:
+                tmp,dimen = self.infertype_ArrayLit(i,vst,implicit,o)
+                if dimen != []:
+                    if length == 0: length = dimen[-1]
+                    else: 
+                        if length != dimen[-1]: return False,False
+                else:
+                    if length != 0: return False,False
+                if typ == []: typ = tmp
+                else:
+                    # x,y = self.union2_ListType(typ,tmp,implicit,True)
+                    # x1,y1 = self.union2_ListType(tmp,typ,implicit,True)
+                    # if y == [] and y1 == []: return False,False
+                    # typ = y if len(y) >= len(y1) else y1
+                    x,y = self.union2_ListType(typ,tmp,None)
+                    if x == [] or y == []: return False,False
+                    typ = x
+            return typ, [len(ast.explist)] + dimen
+        else:
+            typ = self.getTypeOfName(vst.visit(ast,o))
+            return typ,[]
+        # func: [[Name,boolean_inherit]]
+    def suite_Param(self,func:list,call:List[Expr],vst,o:Scope):
+        if len(func) != len(call): return False
+        func = [i[0] for i in func]
+        call = [vst.visit(i,o) for i in call]
+        for x,y in zip(call,func):
+            if len(self.getTypeOfName(x)) < 4:
+                x,y = self.union2_ListType(self.getTypeOfName(x),self.getTypeOfName(y),[vst.integertype,vst.floattype],True)
+                if x == [] or y == []: return False
+        return True
 class StaticChecker(Visitor):
     def __init__(self,ast) -> None:
         self.utils = Utils()
@@ -145,50 +173,55 @@ class StaticChecker(Visitor):
         self.voidtype = VoidType()
         self.booleantype = BooleanType()
         self.stringtype = StringType()
+        self.function = Function()
+        self.parameter = Parameter()
+        self.variable = Variable()
         self.atomic_t = [self.floattype,self.integertype,self.booleantype,self.stringtype]
         self.autotype = AutoType()
         self.ast = ast
         self.all_funcdecl = []
-        self.global_evir:List[Name] = []
-        lst = self.global_evir
-        lst.append(Name('readInteger',FuncType(self.integertype,[]),Function()))
-        lst.append(Name('printInteger',FuncType(self.voidtype,[self.integertype]),Function()))
-        lst.append(Name('readFloat',FuncType(self.floattype,[]),Function()))
-        lst.append(Name('printFloat',FuncType(self.voidtype,[self.floattype]),Function()))
-        lst.append(Name('readBoolean',FuncType(self.booleantype,[]),Function()))
-        lst.append(Name('printBoolean',FuncType(self.voidtype,[self.booleantype]),Function()))
-        lst.append(Name('readString',FuncType(self.stringtype,[]),Function()))
-        lst.append(Name('printString',FuncType(self.voidtype,[self.stringtype]),Function()))
+        
         self.binOps = [
             [['+','-','*','/'],[self.integertype,self.floattype],[self.integertype,self.floattype],[self.integertype,self.floattype]],
             [['%'],[self.integertype],[self.integertype],None],
             [['&&','||'],[self.booleantype],[self.booleantype],None],
-            [['==','>=','>','<'],[self.booleantype,self.integertype],[self.booleantype],None],
+            [['<=','>=','>','<'],[self.integertype,self.floattype],[self.booleantype],None],
+            [['==','!='],[self.booleantype,self.integertype],[self.booleantype],None],
             [['::'],[self.stringtype],[self.stringtype],None],
             [['!'],[self.booleantype],[self.booleantype],None]
         ]
     def check(self):
         self.visit(self.ast,None)
-        return []
+        return ""
     def visit(self, ast, param):
         return ast.accept(self, param)
     def visitProgram(self, ast:Program, o:Scope):
         prog = Scope("prog")
+        lst = prog.var
+        lst.append(Name('readInteger',FuncType([self.integertype],[]),self.function))
+        lst.append(Name('printInteger',FuncType([self.voidtype],[[Name(None,[self.integertype],self.parameter),0]]),self.function))
+        lst.append(Name('readFloat',FuncType([self.floattype],[]),self.function))
+        lst.append(Name('writeFloat',FuncType([self.voidtype],[[Name(None,[self.floattype],self.parameter),0]]),self.function))
+        lst.append(Name('readBoolean',FuncType([self.booleantype],[]),self.function))
+        lst.append(Name('printBoolean',FuncType([self.voidtype],[[Name(None,[self.booleantype],self.parameter),0]]),self.function))
+        lst.append(Name('readString',FuncType([self.stringtype],[]),self.function))
+        lst.append(Name('printString',FuncType([self.voidtype],[[Name(None,[self.stringtype],self.parameter),0]]),self.function))
         decls = [i for i in ast.decls if isinstance(i,FuncDecl)]
-        self.all_funcdecl = [[i,Utils().MT22FuncDecl_to_FuncType(self,i)] for i in decls]
+        self.all_funcdecl:List[Name] = [] + prog.var
+        self.all_funcdecl  += [Utils().MT22FuncDecl_to_Name(self,i) for i in decls]
         mainExist = False
-        for decl,functype in self.all_funcdecl:
-            if decl.name == "main":
-                mainExist = True
-                if not(isinstance(decl.return_type,VoidType)) or len(decl.params) > 0: raise NoEntryPoint()
-        if not(mainExist): raise NoEntryPoint()
         for decl in ast.decls:
             self.visit(decl,prog) 
+        for decl in self.all_funcdecl:
+            if decl.id == "main":
+                mainExist = True
+                if not(isinstance(decl.typ.rettype[0],VoidType)) or len(decl.typ.paratype) > 0: raise NoEntryPoint()
+        if not(mainExist): raise NoEntryPoint()
     ##### Declarations #####
     def visitVarDecl(self, ast:VarDecl, o:Scope):
         #redeclared
         for i in o.var:
-            if i.id == ast.name: raise Redeclared(Variable(),ast.name)
+            if i.id == ast.name: raise Redeclared(self.variable,ast.name)
         #TypeMM in decl
         left_typ = self.visit(ast.typ,o)
         new_typ = None
@@ -203,29 +236,29 @@ class StaticChecker(Visitor):
             elif isinstance(new_typ,Name): new_bind.typ = new_typ.typ
         else:
             if Utils().check_autoType(left_typ): raise Invalid(Variable(),ast.name)
-        # if len(new_typ) == 4: 
-        #     print("APPEND DECL")
-        #     left_auto.typ[1].append(new_bind) 
         o.var.append(new_bind)  
-        print('---- CHECK VARDECL ----')
-        for i in o.var:
-            print(i.id,' : ',i.typ)
+
+        # print('---- CHECK VARDECL ----')
+        # for i in o.var:
+        #     print(i.id,' : ',i.typ)
     
     def visitParamDecl(self, ast, param):
         return super().visitParamDecl(ast, param)
     #auto x = auto a + auto b => a->b ; x = 
     def visitFuncDecl(self, ast:FuncDecl, o:Scope):
         # check redeclared ID and global_evir name
-        for global_evir in self.global_evir:
-            if ast.name == global_evir.id: raise Redeclared(Function,ast.name)
         for decl in o.var:
-            if decl.id == ast.name and isinstance(decl.kind,Function): raise Redeclared(Function,decl.id)
+            if decl.id == ast.name: raise Redeclared(self.function,decl.id)
+        func_decl = None
+        for i in self.all_funcdecl:
+            if i.id == ast.name: 
+                func_decl = i
+                break
         # add new Name into Parent's Scope and make new Scope
+        o.var.append(func_decl)
+        func_decl = func_decl.typ
         func_scope = Scope(ast.name,parScope= o)
-        param = ast.params
-        list_paraName = [Name(i.name,self.visit(i.typ,None),Parameter()) for i in ast.params]
-        o.var.append(Name(ast.name,FuncType(rettype=self.visit(ast.return_type,None),
-                                            paratype=list_paraName),Function()))
+        list_paraName = [i[0] for i in func_decl.paratype]
         func_scope.var += list_paraName
         #1if inherit -> check the existence of parent function
         #2           -> check redeclaration of inherit paramater
@@ -233,84 +266,125 @@ class StaticChecker(Visitor):
         #4                                empty arglist -> if first stmt isn't super -> must be prevenDefault           
         parent_name = ast.inherit 
         body = ast.body.body
-        parent_exist:FuncType = None 
+        parent_exist:Name = False
         start = 0                               
         if parent_name:
             start = 1
-            for decl,functype in self.all_funcdecl:
-                if decl.name == ast.name:
-                    redecl = Utils().redeclare_InheritParam(ast.params,decl.params)
-                    if redecl != '': raise Redeclared(Parameter(),redecl) #2
-                    parent_exist = functype
-                    break
-            if parent_exist is None: raise Undeclared(Function(),parent_name) #1
+            for par_func in self.all_funcdecl:
+                if par_func.id == parent_name:
+                    inherit = [i[0].id for i in par_func.typ.paratype if i[1]]
+                    for i in ast.params:
+                        if i.name in inherit: raise Invalid(self.parameter,i.name) #2
+                    parent_exist = par_func
+            if parent_exist == False: raise Undeclared(Function(),parent_name) #1
             else:
                 # check first statement
                 if len(body) == 0: raise InvalidStatementInFunction(ast.name)
                 first_stmt = body[0]
-                if isinstance(first_stmt,CallStmt):
-                    if first_stmt.name == 'super':
-                        args = [self.visit(i,o) for i in first_stmt.args]
-                        if not(Utils().validArgType_FuncCall(args,[i[0] for i in parent_exist.paratype])): raise TypeMismatchInExpression(first_stmt)
-                    elif first_stmt.name == 'preventDefault':
-                        if len(first_stmt.args) > 0: raise TypeMismatchInExpression(first_stmt)
+                func_scope.var += [i[0] for i in parent_exist.typ.paratype if i[1]]
+                if len(parent_exist.typ.paratype) != 0:
+                    if isinstance(first_stmt,CallStmt):
+                        if first_stmt.name == 'super':
+                            para = parent_exist.typ.paratype
+                            args = first_stmt.args
+                            if Utils().suite_Param(para,args,self,func_scope) == False:
+                                if len(args) > len(para): 
+                                    raise TypeMismatchInExpression(args[len(para)])
+                                elif len(args) < len(para):
+                                    raise TypeMismatchInExpression()
+                        elif first_stmt.name == 'preventDefault':
+                            if len(first_stmt.args) > 0: raise TypeMismatchInExpression(first_stmt)
+                        else: raise InvalidStatementInFunction(ast.name)
                     else: raise InvalidStatementInFunction(ast.name)
-                else: raise InvalidStatementInFunction(ast.name) 
-        #check body (vardecl, stmt) and check existance of return
+                else: 
+                    if isinstance(first_stmt,CallStmt):
+                        if first_stmt.name == "preventDefault":
+                            start = 1
+                        else: start = 0
+                #check body (vardecl, stmt) and check existance of return
         return_exist = False
-        for i in body[start:]: self.visit(i,func_scope)
-        print('---- CHECK FUNCDECL ----')
-        for i in func_scope.var:
-            print(i.id," : ",i.typ)
+        for i in body[start:]: 
+            self.visit(i,func_scope)
+        # print('---- CHECK FUNCDECL ----')
+        # for i in func_scope.var:
+        #     print(i.id," : ",i.typ)
         #if not(return_exist) and not(isinstance(ast.return_type,VoidType)) : raise Invalid(Function(),ast.name)
     ##### Statement ######
     def visitAssignStmt(self, ast:AssignStmt, o:Scope): 
         # LHS: id is  undeclared ? ..... array_ac
         # acess is valid?
         # RHS is valid 
-        self.visit(ast.rhs,o)
+        self.visit(ast.rhs,o).typ
         left = self.visit(ast.lhs,o)
         left_typ = left.typ
         name = self.visit(BinExpr('.',ast.rhs,left_typ if isinstance(ast.rhs,BinExpr) else left),o)
         if name == False: raise TypeMismatchInStatement(ast)
         elif isinstance(name,Name): left.typ = name.typ
-        print('---- CHECK ASSIGN ----')
-        for i in o.var:
-            print(i.id,' : ',i.typ)
+        # print('---- CHECK ASSIGN ----')
+        # for i in o.var:
+        #     print(i.id,' : ',i.typ)
     def visitBlockStmt(self, ast:BlockStmt, o:Scope):
-        for vardecl_or_stat in ast.body: self.visit(vardecl_or_stat,o)
+        block_scope = Scope("",o)
+        for vardecl_or_stat in ast.body: self.visit(vardecl_or_stat,block_scope)
     def visitIfStmt(self, ast:IfStmt, o:Scope):
         if_scope = Scope("if",parScope= o)
-        if not(isinstance(self.visit(ast.cond,o),BooleanType)): raise TypeMismatchInStatement(ast)
+        name = self.visit(ast.cond,if_scope)
+        try:
+            Utils().inferUnType(name,[self.booleantype],[self.booleantype],ast.cond,None)
+        except:
+            raise TypeMismatchInStatement(ast)
         self.visit(ast.tstmt,if_scope)
         if ast.fstmt: 
             else_scope = Scope("else",parScope= o)
             self.visit(ast.fstmt,else_scope)
-    def visitForStmt(self, ast, o:Scope): pass
-    def visitWhileStmt(self, ast, o:Scope): pass
-    def visitDoWhileStmt(self, ast, o:Scope): pass
+    def visitForStmt(self, ast:ForStmt, o:Scope):
+        for_scope = Scope("for",parScope=o)
+        self.visit(ast.init,for_scope)
+        name = self.visit(ast.cond,for_scope)
+        try:
+            Utils().inferUnType(name,[self.booleantype],[self.booleantype],ast.cond,None)
+        except:
+            raise TypeMismatchInStatement(ast)
+        self.visit(ast.upd,for_scope)
+        self.visit(ast.stmt,for_scope)
+    def visitWhileStmt(self, ast:WhileStmt, o:Scope): 
+        while_scope = Scope('while',o)
+        name = self.visit(ast.cond,while_scope)
+        try:
+            Utils().inferUnType(name,[self.booleantype],[self.booleantype],ast.cond,None)
+        except:
+            raise TypeMismatchInStatement(ast)
+        self.visit(ast.stmt,while_scope)
+    def visitDoWhileStmt(self, ast:DoWhileStmt, o:Scope):
+        dowhile_scope = Scope("do",o)
+        name = self.visit(ast.cond,dowhile_scope)
+        try:
+            Utils().inferUnType(name,[self.booleantype],[self.booleantype],ast.cond,None)
+        except:
+            raise TypeMismatchInStatement(ast)
+        self.visit(ast.stmt,dowhile_scope)
     def visitBreakStmt(self, ast:BreakStmt, o:Scope): #dowhile ??
-        nameSuite = ['for','while','if','else']
-        mustbeName = ['for','while']
+        nameSuite = ['for','while','if','else','do','']
+        mustbeName = ['for','while','do']
         tmp = o
         while(tmp):
-            if tmp.name == "": continue
-            elif not(tmp.name in nameSuite): raise MustInLoop(ast)
+            if not(tmp.name in nameSuite): raise MustInLoop(ast)
             else:
                 if tmp.name in mustbeName: return
+                tmp = tmp.parScope
         raise MustInLoop(ast)
     def visitContinueStmt(self, ast:ContinueStmt, o:Scope):  # dowhile ??
-        nameSuite = ['for','while','if','else']
-        mustbeName = ['for','while']
+        nameSuite = ['for','while','if','else','do','']
+        mustbeName = ['for','while','do']
         tmp = o
         while(tmp):
-            if tmp.name == "": continue
-            elif not(tmp.name in nameSuite): raise MustInLoop(ast)
+            if not(tmp.name in nameSuite): raise MustInLoop(ast)
             else:
                 if tmp.name in mustbeName: return
+                tmp = tmp.parScope
         raise MustInLoop(ast)
     def visitReturnStmt(self, ast:ReturnStmt, o:Scope):
-        exceptName = ['for','while','if','else','prog']
+        exceptName = ['for','while','if','else','prog','']
         tmp = o
         functyp:FuncType = None
         func:Name = None
@@ -331,22 +405,25 @@ class StaticChecker(Visitor):
             if ast.expr is None: raise TypeMismatchInStatement(ast)
             else:
                 name = self.visit(BinExpr('.',ast.expr,functyp.rettype),o)
-                func.typ.rettype = name.typ
                 if name == False: raise TypeMismatchInExpression(ast)
+                func.typ.rettype = name.typ
                 #functyp list[type] -> [Name:Auto]
                 #                   -> [Name:Auto,Name:Auto,...] -> encounter !Auto
                 #                   -> []
                 
     def visitCallStmt(self, ast:CallStmt, o:Scope):  # args passed into TypeMM ????
         #check Undeclared
-        func_decl = self.visit(Id(ast.name),[o,Function(),None])
-        #check the length of args and check the type of argument
-        agrs = [self.visit(i,o) for i in ast.args]
-        param:List[Type] = [i[0] for i in func_decl.paratype ]
-        if not(Utils().validArgType_FuncCall(agrs,param)): raise TypeMismatchInExpression
+        func_call = None
+        for i in self.all_funcdecl:
+            if i.id == ast.name: func_call = i
+        if func_call is None: raise Undeclared(self.function,ast.name)
+        #check the length of args
+        if len(func_call.typ.paratype) != len(ast.args): raise TypeMismatchInStatement(ast)
+        if Utils().suite_Param(func_call.typ.paratype,ast.args,self,o) ==  False: 
+            raise TypeMismatchInStatement(ast)
     ##### Expression #####
     def visitUnExpr(self, ast:UnExpr, o:Scope):
-        typ = self.visit(ast.val,o).typ if not(isinstance(ast.val),Id) else [Utils().ID_Suite_Kind(ast.val.name,Variable(),o).typ]
+        typ = self.visit(ast.val,o)
         op = ast.op
         if op == '-': return Utils().inferUnType(typ,[self.integertype,self.floattype],[self.integertype,self.floattype],ast)
         elif op == '!':return Utils().inferUnType(typ,[self.booleantype],[self.booleantype],ast)
@@ -358,12 +435,31 @@ class StaticChecker(Visitor):
         if op == '.':
             if isinstance(right,Name):# -> a (right) = b (left); a = -2; .... SINGLE ASSIGNMENT
                 left = self.visit(left,o)
-                right_typ, left_typ = Utils().union2_ListType(left.typ,right.typ,[self.integertype,self.floattype],True)
-                if left_typ == []: return False
-                else: right.typ = left_typ
-                if left.id != None and len(left.typ) >= 4: # -> auto type
-                    left.typ.append(right)
-                    print('ASSIGN AUTO DEPENDENCIES')
+                # print(right.id,right.typ)
+                # print(left.id,left.typ)
+                try:
+                    Utils().inferUnType(left,right,right.typ,ast,[self.integertype,self.floattype])
+                except:
+                    return False
+                # if isinstance(left.typ,Array):
+                #     if len(right.typ) == 4: 
+                #         right.typ = left.typ
+                #         return
+                #     elif not(isinstance(right.typ,Array)): return False
+                #     else: right_typ,left_typ = right.typ.typ,left.typ.typ
+                # else:
+                #     if isinstance(left.typ,Array): return False
+                #     else: right_typ,left_typ = right.typ,left.typ
+                # left_typ,right_typ = Utils().union2_ListType(left_typ,right_typ,[self.integertype,self.floattype],True)
+                # #print(right.id,right.typ)
+                # if left_typ == []: return False
+                # else: 
+                #     if isinstance(left.typ,Array): left.typ.typ,right.typ.typ = left_typ,right_typ
+                #     else: left.typ,right.typ = left_typ,right_typ
+
+                # if left.id != None and len(left_typ) >= 4: # -> auto type
+                #     left.typ.append(right)
+                    # print('ASSIGN AUTO DEPENDENCIES')
                 return
             elif not(isinstance(left,BinExpr)):
                 try:
@@ -374,15 +470,20 @@ class StaticChecker(Visitor):
                 left_typ,right_typ = left,right
                 exp = left
                 op = ([i for i in binOps if exp.op in i[0]])[0]
-                x,typ = Utils().union2_ListType(op[2],right_typ,op[3],False if op[3] else True)
+                typ,x = Utils().union2_ListType(op[2],right_typ,[self.integertype,self.floattype],True)
                 if typ == []: return False
                 try:
-                    op1 = self.visit(BinExpr('.',exp.left,typ),o)
-                    op2 = self.visit(BinExpr('.',exp.right,typ),o)
+                    if op[3]:
+                        op1 = self.visit(BinExpr('.',exp.left,Utils().union2_ListType(op[1],x,op[3],True)[0]),o)
+                        op2 = self.visit(BinExpr('.',exp.right,Utils().union2_ListType(op[1],x,op[3],True)[0]),o)
+                    else:
+                        op1 = self.visit(BinExpr('.',exp.left,op[1]),o)
+                        op2 = self.visit(BinExpr('.',exp.right,op[1]),o)
                 except:
                     return False
                 if op1 == False or op2 == False: return False
-                return Utils().inferType(op1,op2,op[1],typ,exp,op[3])
+                Utils().inferType(op1,op2,op[1],typ,exp,op[3])
+                return Name(None,x,None)
         else: 
             left_typ,right_typ = self.visit(left,o),self.visit(right,o)
             for binOp  in binOps:
@@ -391,18 +492,19 @@ class StaticChecker(Visitor):
     ##### LITERAL #####
     def visitArrayCell(self, ast:ArrayCell, o:Scope):
         # check Undeclared 
-        typ:Array = None
-        try: typ = self.visit(Id(ast.name),[o,None,Array([])]).typ
-        except Undeclared: pass
-        except: raise TypeMismatchInExpression(ast)
+        typ = None
+        typ = self.visit(Id(ast.name),o).typ
         # check length and check list is IntegerType 
-        exprs = [self.visit(i,o) for i in ast.cell]
+        if not(isinstance(typ,Array)): raise TypeMismatchInExpression(ast) 
+        exprs = ast.cell
         len_orgin = len(typ.dimension)
         len_access = len(exprs)
         if len_orgin < len_access: raise TypeMismatchInExpression(ast)
         for expr in exprs:
-            if not(isinstance(self.visit(expr),IntegerType)): raise TypeMismatchInExpression(ast)
-        if len_orgin == len_access: return typ.typ
+            Utils().inferUnType(self.visit(expr,o),[self.integertype],[self.integertype],expr,[self.integertype,self.floattype])
+            # name = self.visit(BinExpr('.',expr,[self.integertype] if isinstance(expr,BinExpr) else self.visit(expr,o)),o)
+            # if name == False: raise TypeMismatchInExpression(ast)
+        if len_orgin == len_access: return Name(None,typ.typ,None)
         elif len_orgin > len_access: return Array(dimension=exprs[(len_orgin - len_access):],typ=typ.typ)
 
         
@@ -413,22 +515,22 @@ class StaticChecker(Visitor):
     # auto a; float x = a + 2; bool y = a == 2
     def visitArrayLit(self, ast:ArrayLit, o:Scope) -> Array:
         #{1,a} -> infer a is integer
-        if len(ast.explist) == 0: return
-        dimension,typ = Utils().dimension_OneTypeArray(ast)
-        array_t = Array(dimension,self.visit(typ,o))
-        if not(array_t.check_valid_data(ast)): raise IllegalArrayLiteral(ast)
-        return [array_t]
+         
+        typ,dimension = Utils().infertype_ArrayLit(ast,self,[self.integertype,self.floattype],o)
+        if typ == False: raise IllegalArrayLiteral(ast)
+        array_t = Array(dimension,typ)
+        return Name(None,array_t,None)
     def visitFuncCall(self, ast:FuncCall, o:Scope):
         #check Undeclared
-        func_call: FuncType = Utils().ID_Suite_Kind(ast.name,Function(),o).typ
+        func_call = None
+        for i in self.all_funcdecl:
+            if i.id == ast.name: func_call = i
+        if func_call is None: raise Undeclared(self.function,ast.name)
         #check the length of args
-        if len(func_call.paratype) != len(ast.args): raise TypeMismatchInExpression(ast)
-        for arg_exp,para_typ in zip(ast.args,func_call.paratype):
-            print("type of param_call : ", self.visit(arg_exp,o).typ)
-            name =  self.visit(BinExpr('.',arg_exp,para_typ.id if isinstance(arg_exp, BinExpr) else para_typ),o)
-            if name == False: raise TypeMismatchInExpression(ast)
-    
-        return Name(None,func_call.rettype,None)
+        if len(func_call.typ.paratype) != len(ast.args): raise TypeMismatchInExpression(ast)
+        if Utils().suite_Param(func_call.typ.paratype,ast.args,self,o) ==  False: 
+            raise TypeMismatchInExpression(ast)
+        return func_call
     def visitId(self, id:Id, o:Scope) -> Name:
         #Undeclared -> no raise error when 
         tmp = o
@@ -437,12 +539,15 @@ class StaticChecker(Visitor):
                 if decl.id == id.name:
                         if type(decl.kind) != type(Function()) : return decl
             tmp = tmp.parScope
-        raise Undeclared(Identifier(),id)
+        raise Undeclared(Identifier(),id.name)
     def visitIntegerType(self, ast, param): return [self.integertype]
     def visitFloatType(self, ast, param): return [self.floattype]
     def visitBooleanType(self, ast, param): return [self.booleantype]
     def visitStringType(self, ast, param): return [self.stringtype]
     def visitArrayType(self, ast:ArrayType, param): 
-        return Array(dimension=[int(i) for i in ast.dimensions],typ=ast.typ)
+        typ = self.integertype
+        for i in self.atomic_t: 
+            if type(i) == type(ast.typ): typ = i
+        return Array([int(i) for i in ast.dimensions],[typ])
     def visitAutoType(self, ast, param): return self.atomic_t
     def visitVoidType(self, ast, param): return [self.voidtype]
